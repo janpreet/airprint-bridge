@@ -13,6 +13,7 @@ cd "$(dirname "$0")/../.."
 IMAGE_TAG="airprint-bridge:smoketest"
 CONTAINER_NAME="airprint-bridge-smoketest"
 
+# shellcheck disable=SC2317,SC2329 # invoked indirectly via trap, not directly
 cleanup() {
     docker rm -f "$CONTAINER_NAME" >/dev/null 2>&1 || true
 }

@@ -138,6 +138,11 @@ EOF
 }
 
 @test "detects dnf and installs the fedora package set" {
+    # Isolated PATH matters here specifically: on a real Linux CI runner
+    # (unlike this dev Mac) apt-get genuinely exists too, and since it's
+    # checked first in setup.sh's detection order, an unisolated PATH would
+    # silently let the real apt-get win over this test's intent to exercise
+    # the dnf branch.
     mock id 'if [ "$1" = "-u" ]; then echo 0; fi'
     mock dnf 'case "$1" in makecache) exit 0 ;; install) exit 0 ;; esac'
     mock systemctl 'exit 0'
@@ -150,13 +155,19 @@ EOF
     mock avahi-browse 'echo "rp=printers/BridgePrinter"'
     write_default_cupsd_conf
 
-    run "$SCRIPT" 192.0.2.51 --bind-ip 203.0.113.5
+    isolated_bin="$(build_isolated_path)"
+    PATH="$isolated_bin:$MOCK_BIN" run "$SCRIPT" 192.0.2.51 --bind-ip 203.0.113.5
+    rm -rf "$isolated_bin"
+
     [ "$status" -eq 0 ]
     [[ "$output" == *"Detected package manager: dnf, init system: systemd"* ]]
     grep -q "dnf install -y -q cups cups-client avahi avahi-tools" "$CALL_LOG"
 }
 
 @test "falls back to OpenRC when systemctl is absent" {
+    # Same portability concern as above: Ubuntu's real CI runner genuinely
+    # ships systemctl, so this needs a truly isolated PATH to test the
+    # OpenRC branch reliably regardless of host.
     mock id 'if [ "$1" = "-u" ]; then echo 0; fi'
     mock apk 'case "$1" in update) exit 0 ;; add) exit 0 ;; esac'
     mock rc-service 'exit 0'
@@ -170,7 +181,10 @@ EOF
     mock avahi-browse 'echo "rp=printers/BridgePrinter"'
     write_default_cupsd_conf
 
-    run "$SCRIPT" 192.0.2.51 --bind-ip 203.0.113.5
+    isolated_bin="$(build_isolated_path)"
+    PATH="$isolated_bin:$MOCK_BIN" run "$SCRIPT" 192.0.2.51 --bind-ip 203.0.113.5
+    rm -rf "$isolated_bin"
+
     [ "$status" -eq 0 ]
     [[ "$output" == *"Detected package manager: apk, init system: openrc"* ]]
     grep -q "rc-service cups-browsed stop" "$CALL_LOG"
