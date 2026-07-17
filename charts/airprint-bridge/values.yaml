@@ -1,0 +1,52 @@
+image:
+  repository: ghcr.io/janpreet/airprint-bridge
+  tag: latest
+  pullPolicy: IfNotPresent
+
+# The printer being bridged. Required; the chart will fail to render a
+# usable Deployment without it (see the printerIP check in NOTES/values
+# validation below).
+printer:
+  ip: ""
+  # Leave empty to have the container auto-probe common IPP paths
+  # (/ipp/print, /ipp, /) against printer.ip. Set explicitly if that probe
+  # doesn't find the right one.
+  ippPath: ""
+
+queueName: BridgePrinter
+
+# AirPrint discovery is mDNS/multicast, which does not cross a pod network
+# namespace the way unicast traffic does. hostNetwork is not optional here,
+# it's the only way this pod is actually reachable by phones/tablets on the
+# LAN. Turning it off will build and run, but nothing will ever show up in
+# an AirPrint picker.
+hostNetwork: true
+dnsPolicy: ClusterFirstWithHostNet
+
+# Tested with zero added capabilities (mDNS advertising, IP-route detection,
+# and printing all worked with none), so none are granted by default. Left
+# here as an escape hatch for whatever environment-specific reason might
+# come up, not because anything currently needs it.
+capabilities:
+  add: []
+
+# Only meaningful if hostNetwork is deliberately turned off for some reason
+# (testing, or a network setup where mDNS reflection already exists) and you
+# still want the printer/admin ports exposed some other way. With
+# hostNetwork: true (the default and the whole point of this chart), the pod
+# is on the node's actual network stack and this has no effect.
+service:
+  enabled: false
+  type: ClusterIP
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 250m
+    memory: 256Mi
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

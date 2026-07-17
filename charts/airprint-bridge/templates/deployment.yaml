@@ -1,0 +1,87 @@
+{{- if not .Values.printer.ip -}}
+{{- fail "printer.ip is required (the IP of the printer being bridged)" -}}
+{{- end -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "airprint-bridge.fullname" . }}
+  labels:
+    {{- include "airprint-bridge.labels" . | nindent 4 }}
+spec:
+  # Exactly one: mDNS advertising for a given printer only needs to exist
+  # once per broadcast domain, and hostNetwork means every replica would
+  # bind the same host ports anyway.
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: airprint-bridge
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: airprint-bridge
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      hostNetwork: {{ .Values.hostNetwork }}
+      {{- if .Values.hostNetwork }}
+      dnsPolicy: {{ .Values.dnsPolicy }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: airprint-bridge
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- with .Values.capabilities.add }}
+          securityContext:
+            capabilities:
+              add:
+                {{- toYaml . | nindent 16 }}
+          {{- end }}
+          env:
+            - name: PRINTER_IP
+              value: {{ .Values.printer.ip | quote }}
+            - name: QUEUE_NAME
+              value: {{ .Values.queueName | quote }}
+            {{- if .Values.printer.ippPath }}
+            - name: IPP_PATH
+              value: {{ .Values.printer.ippPath | quote }}
+            {{- end }}
+          ports:
+            - name: ipp
+              containerPort: 631
+              protocol: TCP
+            - name: mdns
+              containerPort: 5353
+              protocol: UDP
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+{{- if .Values.service.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "airprint-bridge.fullname" . }}
+  labels:
+    {{- include "airprint-bridge.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    app.kubernetes.io/name: airprint-bridge
+    app.kubernetes.io/instance: {{ .Release.Name }}
+  ports:
+    - name: ipp
+      port: 631
+      targetPort: 631
+      protocol: TCP
+{{- end }}

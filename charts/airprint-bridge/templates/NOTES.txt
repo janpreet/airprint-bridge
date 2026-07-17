@@ -1,0 +1,22 @@
+airprint-bridge is deployed, bridging {{ .Values.printer.ip }} as "{{ .Values.queueName }}".
+
+{{- if .Values.hostNetwork }}
+
+hostNetwork is on, which is required, but only solves half the problem:
+AirPrint discovery is mDNS (multicast), which doesn't cross VLANs/subnets.
+The NODE this pod lands on has to be on the same broadcast domain as the
+iOS devices that should see it, not just any node in the cluster. If it's
+not showing up in the AirPrint picker, check which node the pod scheduled
+to first:
+
+    kubectl get pod -l app.kubernetes.io/instance={{ .Release.Name }} -o wide
+
+and pin it with nodeSelector/affinity if the cluster has nodes on more than
+one physical network segment.
+{{- else }}
+
+hostNetwork is OFF. Nothing will show up in the AirPrint picker like this;
+mDNS advertising needs the pod on the actual host network, not a cluster
+overlay network. Set hostNetwork: true unless you specifically know your
+CNI reflects multicast some other way.
+{{- end }}

@@ -1,0 +1,21 @@
+apiVersion: v2
+name: airprint-bridge
+description: >-
+  Bridges an AirPrint-less network printer into iOS's AirPrint picker via
+  CUPS + Avahi. Requires hostNetwork, since AirPrint discovery is mDNS
+  (multicast), which doesn't cross a pod's network namespace/overlay the
+  way ordinary unicast traffic does; the pod has to sit on the same
+  broadcast domain as the phones and tablets to be discoverable at all.
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+home: https://github.com/janpreet/airprint-bridge
+sources:
+  - https://github.com/janpreet/airprint-bridge
+keywords:
+  - airprint
+  - cups
+  - avahi
+  - printing
+maintainers:
+  - name: janpreet
